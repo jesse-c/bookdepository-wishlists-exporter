@@ -2,12 +2,17 @@ const puppeteer = require('puppeteer')
 const credentials = require('./credentials')
 const ora = require('ora')
 const fs = require('fs')
+const csvWriter = require('csv-write-stream')
 
 const spinner = ora()
 
+const JSON = Symbol.for('json')
+const CSV = Symbol.for('csv')
+
 async function run () {
   // Setup ---------------------------------------------------------------------
-  const output = './wishlists.json'
+  const outputType = CSV
+  const outputPath = `./wishlists.${Symbol.keyFor(outputType)}`
 
   const browser = await puppeteer.launch({
     headless: true
@@ -139,15 +144,39 @@ async function run () {
   await browser.close()
 
   // Export --------------------------------------------------------------------
-  spinner.start(`Writing results to ${output}`)
-  fs.unlinkSync(output)
-  fs.writeFile(output, JSON.stringify(wishlists, null, 2), err => {
+  spinner.start(`Writing results to ${outputPath}`)
+  fs.stat(outputPath, (err, stats) => {
     if (err) {
-      spinner.fail(`Failed to write results to ${output}: ${err}`)
       return
     }
-    spinner.succeed(`Wrote results to ${output}`)
+    fs.unlinkSync(outputPath)
   })
+
+  switch (outputType) {
+    case JSON:
+      fs.writeFile(outputPath, JSON.stringify(wishlists, null, 2), err => {
+        if (err) {
+          spinner.fail(`Failed to write results to ${outputPath}: ${err}`)
+          return
+        }
+        spinner.succeed(`Wrote results to ${outputPath}`)
+      })
+      break
+    case CSV:
+      const writer = csvWriter({ headers: ['title', 'author', 'tags'] })
+      writer.pipe(fs.createWriteStream(outputPath))
+      ids.forEach(id => {
+        const tags = wishlists[id].name
+        wishlists[id].books.forEach(book => {
+          writer.write([book.title, book.author, tags])
+        })
+      })
+      writer.end()
+      break
+    default:
+      throw new Error(`Unknown output type ${outputType}`)
+  }
+  spinner.succeed(`Wrote results to ${outputPath}`)
 }
 
 run()

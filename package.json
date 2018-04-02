@@ -5,6 +5,7 @@
   "author": "Jesse Claven <jesse.claven@gmail.com>",
   "license": "MIT",
   "dependencies": {
+    "csv-write-stream": "^2.0.0",
     "ora": "^2.0.0",
     "puppeteer": "^1.1.1"
   },
